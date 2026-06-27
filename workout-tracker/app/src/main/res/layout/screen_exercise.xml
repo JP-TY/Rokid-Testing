@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/exercisePanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:paddingLeft="10dp"
+    android:paddingRight="10dp">
+
+    <TextView
+        android:id="@+id/exerciseNameView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textColor="@color/hud_foreground"
+        android:textSize="24dp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/exerciseProgressView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="monospace"
+        android:textColor="@color/hud_foreground_muted"
+        android:textSize="13dp" />
+
+    <TextView
+        android:id="@+id/exercisePrevStatsView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textColor="@color/hud_foreground_muted"
+        android:textSize="13dp"
+        android:visibility="gone" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="14dp"
+        android:background="@color/hud_foreground_muted" />
+
+    <TextView
+        android:id="@+id/exerciseWeightView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:fontFamily="monospace"
+        android:textColor="@color/hud_foreground"
+        android:textSize="22dp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/exerciseRepsView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:fontFamily="monospace"
+        android:textColor="@color/hud_foreground_muted"
+        android:textSize="22dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@color/hud_foreground_muted" />
+
+    <TextView
+        android:id="@+id/logSetView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:gravity="center"
+        android:fontFamily="monospace"
+        android:textColor="@color/hud_accent"
+        android:textSize="18dp"
+        android:textStyle="bold"
+        android:text="@string/exercise_log_button" />
+
+    <TextView
+        android:id="@+id/exerciseFeedbackView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:fontFamily="monospace"
+        android:textColor="@color/hud_accent"
+        android:textSize="18dp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+</LinearLayout>

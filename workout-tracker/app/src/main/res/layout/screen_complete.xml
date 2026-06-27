@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/completePanel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/completeMessageView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:fontFamily="monospace"
+            android:text="@string/complete_message"
+            android:textColor="@color/hud_accent"
+            android:textSize="30dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/completeDurationView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:fontFamily="monospace"
+            android:textColor="@color/hud_foreground_muted"
+            android:textSize="16dp" />
+
+        <TextView
+            android:id="@+id/completeStatsView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:fontFamily="monospace"
+            android:textColor="@color/hud_foreground_muted"
+            android:textSize="14dp"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>
