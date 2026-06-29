@@ -4,5 +4,4 @@
     <color name="hud_foreground">#FFFFFF</color>
     <color name="hud_foreground_muted">#888888</color>
     <color name="hud_accent">#66FF00</color>
-    <color name="viewport_background">#000000</color>
 </resources>

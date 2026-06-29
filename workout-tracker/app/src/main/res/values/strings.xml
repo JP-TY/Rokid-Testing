@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="PluralsCandidate">
     <string name="app_name">Workout Tracker</string>
 
     <!-- Menu screen -->
     <string name="screen_menu_title">Workout Tracker</string>
-    <string name="menu_intro">Select a workout:</string>
     <string name="menu_workout_push">Push Day</string>
     <string name="menu_workout_pull">Pull Day</string>
     <string name="menu_workout_legs">Leg Day</string>
@@ -12,6 +12,8 @@
     <string name="menu_workout_upper">Upper</string>
     <string name="menu_workout_lower">Lower</string>
     <string name="menu_item_custom">+ Custom Workout</string>
+    <string name="menu_intro">Select a workout:</string>
+    <string name="menu_item_import">Import</string>
     <string name="menu_item_history">History</string>
     <string name="nav_menu_default">Tap: start  |  Swipe: browse  |  Double-tap: quit</string>
     <string name="nav_menu_quit_confirm">Double-tap again to quit</string>
@@ -20,39 +22,42 @@
     <string name="screen_history_title">Workout History</string>
     <string name="nav_history">Tap: details  |  Double-tap: back</string>
     <string name="history_empty">No workouts yet</string>
+    <string name="history_detail_back">Double-tap: back to list</string>
 
     <!-- Custom workout screen -->
     <string name="screen_custom_workout_title">Create Workout</string>
     <string name="nav_custom_workout">Tap: next  |  Double-tap: back</string>
     <string name="custom_workout_name_prompt">Enter workout name</string>
-    <string name="custom_workout_exercise_prompt">Enter exercise name</string>
-    <string name="custom_workout_voice_hint">Swipe to pick, tap to add</string>
-    <string name="custom_workout_saved">Workout created!</string>
 
     <!-- Exercise list screen -->
     <string name="screen_exercise_list_title">Exercises</string>
-    <string name="nav_exercise_list">Tap: open  |  Swipe: browse  |  Double-tap: abandon</string>
-    <string name="nav_exercise_list_abandon_confirm">Double-tap again to abandon</string>
+    <string name="nav_exercise_list">Tap: open  |  Swipe: browse  |  Double-tap: discard</string>
     <string name="nav_exercise_list_end_confirm">Tap again to end</string>
-    <string name="exercise_list_prev_label">Prev: %1$s</string>
+    <string name="nav_exercise_list_delete_confirm">Tap again to discard</string>
+    <string name="exercise_list_prev_stats">Prev: %1$dx%2$d</string>
+    <string name="exercise_list_finish">Finish Workout</string>
+    <string name="exercise_list_finish_prompt">Finish Workout?</string>
+    <string name="exercise_list_delete">Delete Session</string>
+    <string name="exercise_list_delete_prompt">Delete Session?</string>
 
     <!-- Exercise screen -->
     <string name="screen_exercise_title">Exercise</string>
-    <string name="exercise_set_prefix">Set</string>
-    <string name="exercise_of">of</string>
+    <string name="exercise_set_progress">Set %1$d of %2$d  |  Target: %3$d reps</string>
     <string name="exercise_weight_label">Weight: %1$d %2$s</string>
     <string name="exercise_reps_label">Reps: %1$d</string>
-    <string name="exercise_prev_stats">Prev: %1$.0f %3$s x %2$d</string>
+    <string name="exercise_prev_stats_format">Prev: %1$d %2$s x %3$d</string>
     <string name="exercise_log_button">LOG SET</string>
     <string name="exercise_confirm_button">Confirm?</string>
-    <string name="exercise_logged_feedback">%1$d x %2$d saved!</string>
+    <string name="exercise_logged_feedback">%1$d%2$s x %3$d saved!</string>
     <string name="nav_exercise">Tap: select row  |  Swipe: adjust  |  Double-tap: back</string>
     <string name="nav_exercise_confirm">Tap again to confirm</string>
 
     <!-- Timer screen -->
     <string name="screen_timer_title">Rest</string>
-    <string name="timer_skip_label">Tap or double-tap to skip</string>
-    <string name="nav_timer">Tap/double-tap: skip</string>
+    <string name="timer_sets_remaining">Set %1$d of %2$d</string>
+    <string name="timer_all_sets_complete">All sets complete!</string>
+    <string name="nav_timer">Tap: skip  |  Auto: %1$ds</string>
+    <string name="nav_timer_no_countdown">Tap: skip</string>
 
     <!-- Complete screen -->
     <string name="screen_complete_title">Workout Complete</string>
@@ -64,4 +69,37 @@
     <string name="nav_complete_export_confirm">Double-tap again to export</string>
     <string name="export_success">Exported!</string>
     <string name="export_failed">Export failed</string>
+
+    <!-- Complete screen (format strings) -->
+    <string name="complete_stats_format">%1$s  %2$s</string>
+
+    <!-- Custom workout screen -->
+    <string name="custom_hint_picker">Swipe: browse  Tap: select  Double-tap: confirm</string>
+    <string name="custom_hint_count">Swipe: change count  Tap: confirm</string>
+    <string name="custom_hint_save">Tap: save  Double-tap: cancel</string>
+    <string name="custom_hint_type_custom">Swipe: browse  Tap: select  Double-tap: type custom</string>
+    <string name="custom_hint_adjust">Swipe: adjust  Tap: confirm</string>
+    <string name="custom_hint_dictation">Speak name  Tap: confirm  Swipe: type manually</string>
+    <string name="custom_prompt_exercise_pick">Exercise %1$d of %2$d: pick name</string>
+    <string name="custom_prompt_exercises">Exercises: %1$d  (tap to confirm)</string>
+    <string name="custom_prompt_exercise_choose">Exercise %1$d of %2$d: choose</string>
+    <string name="custom_prompt_exercise_type_name">Exercise %1$d of %2$d: type name</string>
+    <string name="custom_prompt_reps">Exercise %1$d: target reps</string>
+    <string name="custom_prompt_weight">Exercise %1$d: default weight</string>
+    <string name="custom_prompt_dictating">Dictating… %1$s</string>
+    <string name="custom_prompt_speak">Speak workout name</string>
+    <string name="custom_result_reps">Reps: %1$d</string>
+    <string name="custom_result_weight">Weight: %1$d kg</string>
+
+    <!-- History screen -->
+    <string name="history_row">%1$s%2$s  %3$s  %4$dm  %5$s%6$s</string>
+    <string name="history_detail_header">  %1$s  %2$s  %3$dm</string>
+    <string name="history_exercise_num">  %1$d. %2$s</string>
+    <string name="history_set_detail">      Set %1$d: %2$d%3$s x %4$d</string>
+
+    <!-- Menu screen -->
+    <string name="menu_row">  %1$s</string>
+
+    <!-- Exercise list screen -->
+    <string name="exercise_list_row">%1$s%2$s%3$s  %4$s  %5$s%6$s</string>
 </resources>
