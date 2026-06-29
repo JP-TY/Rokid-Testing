@@ -19,27 +19,43 @@ internal class MenuScreenController(
     private data class MenuRow(
         val label: String,
         val isCustom: Boolean = false,
+        val isActive: Boolean = false,
+        val isDeletable: Boolean = false,
         val textView: TextView? = null
     )
 
     private val menuRows = mutableListOf<MenuRow>()
     private var focusedIndex = 0
     private var quitConfirmationArmed = false
+    private var deleteArmed = false
     private val container: LinearLayout = panelView.findViewById(R.id.menuContainer)
     private var customTemplates: List<WorkoutTemplate> = emptyList()
+    private var activeSessionName: String? = null
     private val visibleRows = 6
 
     override fun onEnter() {
         quitConfirmationArmed = false
+        deleteArmed = false
         focusedIndex = 0
         val activity = panelView.context as MainActivity
         customTemplates = activity.getRepository().getCustomTemplates()
+        activeSessionName = if (activity.hasActiveSession()) {
+            activity.getSession()?.template?.name
+        } else null
         buildMenu()
     }
 
     private fun buildMenu() {
         menuRows.clear()
         container.removeAllViews()
+
+        if (activeSessionName != null) {
+            val label = "\u25B6 ${activeSessionName} (In Progress)"
+            menuRows.add(MenuRow(label, isActive = true))
+            val tv = createRow(label, isSpecial = true)
+            container.addView(tv)
+            menuRows[menuRows.lastIndex] = menuRows.last().copy(textView = tv)
+        }
 
         seedLabels.forEachIndexed { i, labelRes ->
             val label = panelView.context.getString(labelRes)
@@ -57,10 +73,10 @@ internal class MenuScreenController(
                 setBackgroundColor(panelView.context.getColor(R.color.hud_foreground_muted))
             }
             container.addView(sep)
-            menuRows.add(MenuRow("")) // placeholder for separator
+            menuRows.add(MenuRow(""))
 
             customTemplates.forEach { template ->
-                menuRows.add(MenuRow(template.name, isCustom = true))
+                menuRows.add(MenuRow(template.name, isCustom = true, isDeletable = true))
                 val tv = createRow(template.name, isSpecial = true)
                 container.addView(tv)
                 menuRows[menuRows.lastIndex] = menuRows.last().copy(textView = tv)
@@ -74,7 +90,7 @@ internal class MenuScreenController(
             setBackgroundColor(panelView.context.getColor(R.color.hud_foreground_muted))
         }
         container.addView(sep2)
-        menuRows.add(MenuRow("")) // placeholder
+        menuRows.add(MenuRow(""))
 
         val customLabel = panelView.context.getString(R.string.menu_item_custom)
         menuRows.add(MenuRow(customLabel, isCustom = true))
@@ -87,11 +103,17 @@ internal class MenuScreenController(
         val historyTv = createRow(historyLabel, isSpecial = true)
         container.addView(historyTv)
         menuRows[menuRows.lastIndex] = menuRows.last().copy(textView = historyTv)
+
+        val importLabel = panelView.context.getString(R.string.menu_item_import)
+        menuRows.add(MenuRow(importLabel, isCustom = true))
+        val importTv = createRow(importLabel, isSpecial = true)
+        container.addView(importTv)
+        menuRows[menuRows.lastIndex] = menuRows.last().copy(textView = importTv)
     }
 
     private fun createRow(label: String, isSpecial: Boolean): TextView {
         return TextView(panelView.context).apply {
-            text = "  $label"
+            text = panelView.context.getString(R.string.menu_row, label)
             typeface = Typeface.MONOSPACE
             textSize = if (isSpecial) 18f else 22f
             setTextColor(panelView.context.getColor(
@@ -128,14 +150,17 @@ internal class MenuScreenController(
             }
             val isFocused = index == focusedIndex
             tv.visibility = View.VISIBLE
-            tv.text = if (isFocused) "> ${row.label}" else "  ${row.label}"
+            val isDeleteVisual = isFocused && row.isDeletable && deleteArmed
+            tv.text = if (isDeleteVisual) "> Delete ${row.label}?" else if (isFocused) "> ${row.label}" else "  ${row.label}"
             tv.typeface = Typeface.create(
                 Typeface.MONOSPACE,
                 if (isFocused) Typeface.BOLD else Typeface.NORMAL
             )
             tv.setTextColor(panelView.context.getColor(
                 when {
+                    isDeleteVisual -> R.color.hud_foreground
                     isFocused && row.isCustom -> R.color.hud_accent
+                    isFocused && row.isActive -> R.color.hud_foreground
                     isFocused -> R.color.hud_foreground
                     row.isCustom -> R.color.hud_accent
                     else -> R.color.hud_foreground_muted
@@ -144,21 +169,55 @@ internal class MenuScreenController(
         }
     }
 
+    private fun seedStartIndex(): Int = if (activeSessionName != null) 1 else 0
+
     override fun handleAction(action: NavigationAction): ScreenCommand {
         return when (action) {
             NavigationAction.SELECT -> {
                 quitConfirmationArmed = false
+                if (deleteArmed) {
+                    deleteArmed = false
+                    return ScreenCommand.Stay
+                }
                 val row = menuRows.getOrNull(focusedIndex) ?: return ScreenCommand.Stay
+
+                if (row.isActive) {
+                    val activity = panelView.context as MainActivity
+                    activity.resumeSession()
+                    return ScreenCommand.Stay
+                }
+
+                val seedStart = seedStartIndex()
+                val seedEnd = seedStart + seedLabels.size
                 when {
-                    focusedIndex < seedLabels.size -> {
+                    focusedIndex in seedStart until seedEnd -> {
                         val activity = panelView.context as MainActivity
-                        activity.startWorkout(focusedIndex)
+                        activity.startWorkout(focusedIndex - seedStart)
                     }
                     row.label == panelView.context.getString(R.string.menu_item_custom) -> {
                         return ScreenCommand.Open(ScreenId.CUSTOM_WORKOUT)
                     }
                     row.label == panelView.context.getString(R.string.menu_item_history) -> {
                         return ScreenCommand.Open(ScreenId.HISTORY)
+                    }
+                    row.label == panelView.context.getString(R.string.menu_item_import) -> {
+                        val activity = panelView.context as MainActivity
+                        val repo = activity.getRepository()
+                        val result = ImportWorkout.scanAndImport(activity, repo)
+                        val msg = if (result.imported.isNotEmpty()) {
+                            "Imported: ${result.imported.joinToString()}"
+                        } else if (result.errors.isNotEmpty()) {
+                            "Error: ${result.errors.first()}"
+                        } else {
+                            "No files found"
+                        }
+                        android.widget.Toast.makeText(activity, msg, android.widget.Toast.LENGTH_LONG).show()
+                        if (result.imported.isNotEmpty()) {
+                            activity.refreshCustomWorkouts()
+                            focusedIndex = 0
+                            buildMenu()
+                        }
+                        ScreenCommand.Stay
                     }
                     row.isCustom && row.label.isNotEmpty() -> {
                         val template = customTemplates.find { it.name == row.label }
@@ -172,7 +231,19 @@ internal class MenuScreenController(
             }
 
             NavigationAction.BACK -> {
-                if (quitConfirmationArmed) {
+                val row = menuRows.getOrNull(focusedIndex)
+                if (row?.isDeletable == true && deleteArmed) {
+                    deleteArmed = false
+                    val activity = panelView.context as MainActivity
+                    activity.getRepository().deleteCustomTemplate(row.label)
+                    activity.refreshCustomWorkouts()
+                    focusedIndex = 0
+                    buildMenu()
+                    ScreenCommand.Stay
+                } else if (row?.isDeletable == true) {
+                    deleteArmed = true
+                    ScreenCommand.Stay
+                } else if (quitConfirmationArmed) {
                     ScreenCommand.ExitApp
                 } else {
                     quitConfirmationArmed = true
@@ -182,6 +253,7 @@ internal class MenuScreenController(
 
             NavigationAction.NEXT -> {
                 quitConfirmationArmed = false
+                deleteArmed = false
                 val valid = menuRows.indices.filter { menuRows[it].label.isNotEmpty() }
                 val currentPos = valid.indexOf(focusedIndex)
                 if (currentPos >= 0 && currentPos < valid.lastIndex) {
@@ -192,6 +264,7 @@ internal class MenuScreenController(
 
             NavigationAction.PREVIOUS -> {
                 quitConfirmationArmed = false
+                deleteArmed = false
                 val valid = menuRows.indices.filter { menuRows[it].label.isNotEmpty() }
                 val currentPos = valid.indexOf(focusedIndex)
                 if (currentPos > 0) {
@@ -203,10 +276,11 @@ internal class MenuScreenController(
     }
 
     override fun navigationHint(context: Context): String {
-        return if (quitConfirmationArmed) {
-            context.getString(R.string.nav_menu_quit_confirm)
-        } else {
-            context.getString(R.string.nav_menu_default)
+        val row = menuRows.getOrNull(focusedIndex)
+        return when {
+            deleteArmed && row?.isDeletable == true -> "Double-tap again to delete"
+            quitConfirmationArmed -> context.getString(R.string.nav_menu_quit_confirm)
+            else -> context.getString(R.string.nav_menu_default)
         }
     }
 }

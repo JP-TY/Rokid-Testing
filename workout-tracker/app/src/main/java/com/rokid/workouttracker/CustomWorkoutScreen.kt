@@ -2,6 +2,7 @@ package com.rokid.workouttracker
 
 import android.content.Context
 import android.graphics.Typeface
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 
@@ -17,12 +18,21 @@ internal class CustomWorkoutScreen(
     private val accentColor: Int
 
     private val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
-    private val specialCount = 1
+    private val specialCount = 2
     private var charIndex = 0
 
+    private val commonExercises = listOf(
+        "Bench Press", "Squat", "Deadlift", "Overhead Press",
+        "Barbell Row", "Pull Up", "Push Up", "Dumbbell Curl",
+        "Triceps Extension", "Leg Press", "Lat Pulldown",
+        "Dumbbell Fly", "Shoulder Raise", "Plank", "Crunch"
+    )
+
     private data class PickerEntry(val label: String, val isSpecial: Boolean, val action: Action)
-    private enum class Action { ADD_CHAR, BACKSPACE }
+    private enum class Action { ADD_CHAR, BACKSPACE, VOICE, SELECT_COMMON }
     private enum class Step { NAME, COUNT, EXERCISES, SAVE }
+    private enum class NameMode { VOICE, PICKER }
+    private var nameMode = NameMode.VOICE
 
     private var step = Step.NAME
     private var workoutName = ""
@@ -37,8 +47,11 @@ internal class CustomWorkoutScreen(
     private val exerciseRepsList = mutableListOf<Int>()
     private val exerciseWeightList = mutableListOf<Int>()
 
-    private enum class ExerciseSubStep { NAME, REPS, WEIGHT }
-    private var exerciseSubStep = ExerciseSubStep.NAME
+    private enum class ExerciseSubStep { COMMON, NAME, REPS, WEIGHT }
+    private var exerciseSubStep = ExerciseSubStep.COMMON
+    private var commonPickIndex = 0
+
+    private var dictationName = ""
 
     init {
         val ctx = panelView.context
@@ -50,18 +63,92 @@ internal class CustomWorkoutScreen(
     override fun onEnter() {
         step = Step.NAME
         workoutName = ""
+        dictationName = ""
         exerciseCount = 1
         resetExerciseAccumulators()
         charIndex = 0
+        nameMode = NameMode.VOICE
         resultView.visibility = View.GONE
         errorView.visibility = View.GONE
-        promptView.text = panelView.context.getString(R.string.custom_workout_name_prompt)
-        hintView.text = "Swipe: browse  Tap: select  Double-tap: confirm"
+        startVoiceName()
+    }
+
+private fun startVoiceName() {
+        nameMode = NameMode.VOICE
+        val activity = panelView.context as MainActivity
+        promptView.text = panelView.context.getString(R.string.custom_prompt_speak)
+        hintView.text = panelView.context.getString(R.string.custom_hint_dictation)
         hintView.visibility = View.VISIBLE
+        resultView.visibility = View.GONE
+        activity.enterDictationForName { text, isFinal ->
+            val word = text.trim().lowercase()
+            if (word.isNotEmpty()) {
+                when (word) {
+                    "done", "confirm", "finish" -> {
+                        if (workoutName.isNotBlank()) {
+                            activity.exitDictation()
+                            dictationName = ""
+                            showPicker()
+                        }
+                    }
+                    "delete", "backspace" -> {
+                        workoutName = workoutName.trimEnd()
+                        val lastSpace = workoutName.lastIndexOf(' ')
+                        if (lastSpace >= 0) {
+                            workoutName = workoutName.substring(0, lastSpace)
+                        } else {
+                            workoutName = ""
+                        }
+                        updateNameDisplay()
+                    }
+                    "space" -> {
+                        workoutName += " "
+                        updateNameDisplay()
+                    }
+                    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+                    "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z" -> {
+                        workoutName += word
+                        updateNameDisplay()
+                    }
+                    else -> {
+                        if (workoutName.isNotEmpty() && !workoutName.endsWith(" ")) {
+                            workoutName += " "
+                        }
+                        workoutName += word.replaceFirstChar { it.uppercase() }
+                        updateNameDisplay()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showVoiceNameResult() {
+        val display = workoutName.ifEmpty { dictationName }
+        resultView.text = if (display.isNotEmpty()) "> $display <" else ""
+        resultView.visibility = if (display.isNotEmpty()) View.VISIBLE else View.GONE
+        promptView.text = panelView.context.getString(R.string.custom_prompt_speak)
+        hintView.text = panelView.context.getString(R.string.custom_hint_dictation)
+    }
+
+    private fun updateNameDisplay() {
+        dictationName = workoutName
+        resultView.text = if (workoutName.isNotEmpty()) "> $workoutName <" else ""
+        resultView.visibility = if (workoutName.isNotEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun switchToPicker() {
+        nameMode = NameMode.PICKER
+        val activity = panelView.context as MainActivity
+        activity.exitDictation()
+        dictationName = ""
+        charIndex = 0
         showPicker()
     }
 
-    override fun onExit() {}
+    override fun onExit() {
+        (panelView.context as MainActivity).exitDictation()
+        dictationName = ""
+    }
 
     override fun render() {}
 
@@ -73,16 +160,17 @@ internal class CustomWorkoutScreen(
         exerciseNames.clear()
         exerciseRepsList.clear()
         exerciseWeightList.clear()
-        exerciseSubStep = ExerciseSubStep.NAME
+        exerciseSubStep = ExerciseSubStep.COMMON
     }
 
     private fun startNextExercise() {
         currentExerciseName = ""
         currentReps = 10
         currentWeight = 0
-        exerciseSubStep = ExerciseSubStep.NAME
+        exerciseSubStep = ExerciseSubStep.COMMON
         charIndex = 0
-        promptView.text = "Exercise ${currentExerciseIndex + 1} of $exerciseCount: pick name"
+        commonPickIndex = 0
+        promptView.text = panelView.context.getString(R.string.custom_prompt_exercise_pick, currentExerciseIndex + 1, exerciseCount)
         showPicker()
     }
 
@@ -92,23 +180,32 @@ internal class CustomWorkoutScreen(
             val label = if (c == ' ') "⎵ Space" else "Letter: $c"
             return PickerEntry(label, false, Action.ADD_CHAR)
         }
-        return PickerEntry("← Backspace", true, Action.BACKSPACE)
+        if (charIndex == chars.length) {
+            return PickerEntry("← Backspace", true, Action.BACKSPACE)
+        }
+        return PickerEntry("Voice", false, Action.VOICE)
     }
 
     private fun showPicker() {
         errorView.visibility = View.GONE
         val resultText = when {
             step == Step.COUNT || step == Step.SAVE -> ""
+            step == Step.EXERCISES && exerciseSubStep == ExerciseSubStep.COMMON -> ""
             step == Step.EXERCISES && exerciseSubStep != ExerciseSubStep.NAME -> ""
-            else -> {
+            step == Step.EXERCISES && exerciseSubStep == ExerciseSubStep.NAME -> {
                 val entry = currentEntry()
-                val prefix = when (step) {
-                    Step.NAME -> "Name: $workoutName"
-                    Step.EXERCISES -> "Ex ${currentExerciseIndex + 1}: $currentExerciseName"
-                    else -> ""
-                }
+                val prefix = "Ex ${currentExerciseIndex + 1}: $currentExerciseName"
                 "$prefix\n> ${entry.label} <"
             }
+            step == Step.NAME && nameMode == NameMode.PICKER -> {
+                val entry = currentEntry()
+                "Name: $workoutName\n> ${entry.label} <"
+            }
+            step == Step.NAME && nameMode == NameMode.VOICE -> {
+                val display = workoutName.ifEmpty { dictationName }
+                if (display.isNotEmpty()) "Name: $display" else ""
+            }
+            else -> ""
         }
         resultView.text = resultText
         resultView.visibility = if (resultText.isEmpty()) View.GONE else View.VISIBLE
@@ -116,8 +213,8 @@ internal class CustomWorkoutScreen(
 
         when (step) {
             Step.COUNT -> {
-                promptView.text = "Exercises: $exerciseCount  (tap to confirm)"
-                hintView.text = "Swipe: change count  Tap: confirm"
+                promptView.text = panelView.context.getString(R.string.custom_prompt_exercises, exerciseCount)
+                hintView.text = panelView.context.getString(R.string.custom_hint_count)
             }
             Step.SAVE -> {
                 val sb = StringBuilder("\"$workoutName\"")
@@ -125,23 +222,34 @@ internal class CustomWorkoutScreen(
                     sb.append("\n  • $name: ${exerciseRepsList[i]} reps × ${exerciseWeightList[i]}kg")
                 }
                 promptView.text = sb.toString()
-                hintView.text = "Tap: save  Double-tap: cancel"
+                hintView.text = panelView.context.getString(R.string.custom_hint_save)
             }
             Step.EXERCISES -> when (exerciseSubStep) {
+                ExerciseSubStep.COMMON -> {
+                    val exName = commonExercises.getOrNull(commonPickIndex) ?: "Custom..."
+                    promptView.text = panelView.context.getString(R.string.custom_prompt_exercise_choose, currentExerciseIndex + 1, exerciseCount)
+                    hintView.text = panelView.context.getString(R.string.custom_hint_type_custom)
+                    resultView.text = if (commonPickIndex < commonExercises.size) {
+                        "> $exName <"
+                    } else {
+                        "> Custom...  (type name) <"
+                    }
+                    resultView.visibility = View.VISIBLE
+                }
                 ExerciseSubStep.NAME -> {
-                    promptView.text = "Exercise ${currentExerciseIndex + 1} of $exerciseCount: pick name"
-                    hintView.text = "Swipe: browse  Tap: select  Double-tap: confirm"
+                    promptView.text = panelView.context.getString(R.string.custom_prompt_exercise_type_name, currentExerciseIndex + 1, exerciseCount)
+                    hintView.text = panelView.context.getString(R.string.custom_hint_picker)
                 }
                 ExerciseSubStep.REPS -> {
-                    promptView.text = "Exercise ${currentExerciseIndex + 1}: target reps"
-                    hintView.text = "Swipe: adjust  Tap: confirm"
-                    resultView.text = "Reps: $currentReps"
+                    promptView.text = panelView.context.getString(R.string.custom_prompt_reps, currentExerciseIndex + 1)
+                    hintView.text = panelView.context.getString(R.string.custom_hint_adjust)
+                    resultView.text = panelView.context.getString(R.string.custom_result_reps, currentReps)
                     resultView.visibility = View.VISIBLE
                 }
                 ExerciseSubStep.WEIGHT -> {
-                    promptView.text = "Exercise ${currentExerciseIndex + 1}: default weight"
-                    hintView.text = "Swipe: adjust  Tap: confirm"
-                    resultView.text = "Weight: ${currentWeight} kg"
+                    promptView.text = panelView.context.getString(R.string.custom_prompt_weight, currentExerciseIndex + 1)
+                    hintView.text = panelView.context.getString(R.string.custom_hint_adjust)
+                    resultView.text = panelView.context.getString(R.string.custom_result_weight, currentWeight)
                     resultView.visibility = View.VISIBLE
                 }
             }
@@ -159,6 +267,53 @@ internal class CustomWorkoutScreen(
     }
 
     private fun handleNameAction(action: NavigationAction): ScreenCommand {
+        return when (nameMode) {
+            NameMode.VOICE -> handleVoiceNameAction(action)
+            NameMode.PICKER -> handlePickerNameAction(action)
+        }
+    }
+
+    private fun handleVoiceNameAction(action: NavigationAction): ScreenCommand {
+        return when (action) {
+            NavigationAction.SELECT -> {
+                if (workoutName.isNotBlank()) {
+                    step = Step.COUNT
+                    showPicker()
+                } else {
+                    switchToPicker()
+                }
+                ScreenCommand.Stay
+            }
+            NavigationAction.BACK -> {
+                if (dictationName.isNotEmpty()) {
+                    dictationName = ""
+                    (panelView.context as MainActivity).exitDictation()
+                    showVoiceNameResult()
+                } else if (workoutName.isNotBlank()) {
+                    workoutName = ""
+                    showVoiceNameResult()
+                } else {
+                    ScreenCommand.Open(ScreenId.MENU)
+                }
+                ScreenCommand.Stay
+            }
+            NavigationAction.NEXT -> {
+                if (workoutName.isBlank() && dictationName.isBlank()) {
+                    switchToPicker()
+                } else {
+                    step = Step.COUNT
+                    showPicker()
+                }
+                ScreenCommand.Stay
+            }
+            NavigationAction.PREVIOUS -> {
+                switchToPicker()
+                ScreenCommand.Stay
+            }
+        }
+    }
+
+    private fun handlePickerNameAction(action: NavigationAction): ScreenCommand {
         return when (action) {
             NavigationAction.SELECT -> {
                 when (currentEntry().action) {
@@ -170,6 +325,11 @@ internal class CustomWorkoutScreen(
                         if (workoutName.isNotEmpty()) workoutName = workoutName.dropLast(1)
                         showPicker()
                     }
+                    Action.VOICE -> {
+                        startVoiceName()
+                        ScreenCommand.Stay
+                    }
+                    Action.SELECT_COMMON -> {}
                 }
                 ScreenCommand.Stay
             }
@@ -177,10 +337,10 @@ internal class CustomWorkoutScreen(
                 if (workoutName.isNotBlank()) {
                     step = Step.COUNT
                     showPicker()
-                    ScreenCommand.Stay
                 } else {
                     ScreenCommand.Open(ScreenId.MENU)
                 }
+                ScreenCommand.Stay
             }
             NavigationAction.NEXT -> {
                 val max = chars.length + specialCount - 1
@@ -220,9 +380,50 @@ internal class CustomWorkoutScreen(
 
     private fun handleExercisesAction(action: NavigationAction): ScreenCommand {
         return when (exerciseSubStep) {
+            ExerciseSubStep.COMMON -> handleExerciseCommonAction(action)
             ExerciseSubStep.NAME -> handleExerciseNameAction(action)
             ExerciseSubStep.REPS -> handleExerciseRepsAction(action)
             ExerciseSubStep.WEIGHT -> handleExerciseWeightAction(action)
+        }
+    }
+
+    private fun handleExerciseCommonAction(action: NavigationAction): ScreenCommand {
+        return when (action) {
+            NavigationAction.SELECT -> {
+                if (commonPickIndex < commonExercises.size) {
+                    currentExerciseName = commonExercises[commonPickIndex]
+                    exerciseSubStep = ExerciseSubStep.REPS
+                } else {
+                    exerciseSubStep = ExerciseSubStep.NAME
+                    charIndex = 0
+                }
+                showPicker()
+                ScreenCommand.Stay
+            }
+            NavigationAction.BACK -> {
+                if (currentExerciseIndex == 0) {
+                    step = Step.COUNT
+                    showPicker()
+                } else {
+                    currentExerciseIndex--
+                    currentExerciseName = exerciseNames.removeLastOrNull() ?: ""
+                    currentReps = exerciseRepsList.removeLastOrNull() ?: 10
+                    currentWeight = exerciseWeightList.removeLastOrNull() ?: 0
+                    exerciseSubStep = ExerciseSubStep.WEIGHT
+                    showPicker()
+                }
+                ScreenCommand.Stay
+            }
+            NavigationAction.NEXT -> {
+                commonPickIndex = (commonPickIndex + 1).coerceAtMost(commonExercises.size)
+                showPicker()
+                ScreenCommand.Stay
+            }
+            NavigationAction.PREVIOUS -> {
+                commonPickIndex = (commonPickIndex - 1).coerceAtLeast(0)
+                showPicker()
+                ScreenCommand.Stay
+            }
         }
     }
 
@@ -245,6 +446,12 @@ internal class CustomWorkoutScreen(
                         if (currentExerciseName.isNotEmpty()) currentExerciseName = currentExerciseName.dropLast(1)
                         showPicker()
                     }
+                    Action.VOICE -> {
+                        exerciseSubStep = ExerciseSubStep.NAME
+                        showPicker()
+                        ScreenCommand.Stay
+                    }
+                    Action.SELECT_COMMON -> {}
                 }
                 ScreenCommand.Stay
             }
@@ -252,20 +459,12 @@ internal class CustomWorkoutScreen(
                 if (currentExerciseName.isNotBlank()) {
                     exerciseSubStep = ExerciseSubStep.REPS
                     showPicker()
-                    ScreenCommand.Stay
-                } else if (currentExerciseIndex == 0) {
-                    step = Step.COUNT
-                    showPicker()
-                    ScreenCommand.Stay
                 } else {
-                    currentExerciseIndex--
-                    currentExerciseName = exerciseNames.removeLastOrNull() ?: ""
-                    currentReps = exerciseRepsList.removeLastOrNull() ?: 10
-                    currentWeight = exerciseWeightList.removeLastOrNull() ?: 0
-                    exerciseSubStep = ExerciseSubStep.WEIGHT
+                    exerciseSubStep = ExerciseSubStep.COMMON
+                    commonPickIndex = 0
                     showPicker()
-                    ScreenCommand.Stay
                 }
+                ScreenCommand.Stay
             }
             NavigationAction.NEXT -> {
                 val max = chars.length + specialCount - 1

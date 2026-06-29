@@ -10,35 +10,24 @@ internal class TimerScreenController(
     panelView: View
 ) : ViewScreenController(ScreenId.TIMER, panelView) {
 
-    private val timerCountdownView: TextView = panelView.findViewById(R.id.timerCountdownView)
-    private val timerProgressContainer: View = panelView.findViewById(R.id.timerProgressContainer)
-    private val timerProgressFill: View = panelView.findViewById(R.id.timerProgressFill)
-    private val timerExerciseInfo: TextView = panelView.findViewById(R.id.timerExerciseInfo)
+    private val setsRemainingView: TextView = panelView.findViewById(R.id.timerSetsRemainingView)
+    private val countdownView: TextView = panelView.findViewById(R.id.timerCountdownView)
 
-    private var secondsRemaining = 0
-    private var totalSeconds = 0
-    private val handler = Handler(Looper.getMainLooper())
-    private val tickRunnable = object : Runnable {
-        override fun run() {
-            if (secondsRemaining <= 0) {
-                onTimerComplete()
-                return
-            }
-            secondsRemaining--
-            updateDisplay()
-            handler.postDelayed(this, 1000L)
-        }
-    }
+    private var countdownSeconds = 0
+    private var countdownHandler = Handler(Looper.getMainLooper())
+    private var countdownRunnable: Runnable? = null
+    private var hasSkipped = false
 
     override fun onEnter() {
+        hasSkipped = false
         val activity = panelView.context as MainActivity
-        val session = activity.getSession() ?: return
-        val exercise = session.currentExercise.template
-
-        secondsRemaining = exercise.restSeconds ?: session.template.restSeconds
-        totalSeconds = secondsRemaining
-        updateDisplay()
-        handler.postDelayed(tickRunnable, 1000L)
+        val session = activity.getSession()
+        if (session != null) {
+            val ex = session.currentExercise
+            countdownSeconds = ex.template.restSeconds ?: session.template.restSeconds
+            updateDisplay()
+            startCountdown()
+        }
     }
 
     override fun render() {
@@ -46,52 +35,70 @@ internal class TimerScreenController(
     }
 
     override fun onExit() {
-        handler.removeCallbacks(tickRunnable)
+        stopCountdown()
     }
 
     override fun handleAction(action: NavigationAction): ScreenCommand {
         val activity = panelView.context as MainActivity
         return when (action) {
             NavigationAction.SELECT, NavigationAction.BACK -> {
-                handler.removeCallbacks(tickRunnable)
-                activity.skipTimer()
+                if (!hasSkipped) {
+                    hasSkipped = true
+                    stopCountdown()
+                    activity.advanceFromRest()
+                }
                 ScreenCommand.Stay
             }
-
             else -> ScreenCommand.Stay
         }
     }
 
     override fun navigationHint(context: Context): String {
-        return context.getString(R.string.nav_timer)
+        return if (countdownSeconds > 0) {
+            context.getString(R.string.nav_timer, countdownSeconds)
+        } else {
+            panelView.context.getString(R.string.nav_timer_no_countdown)
+        }
+    }
+
+    private fun startCountdown() {
+        stopCountdown()
+        countdownRunnable = object : Runnable {
+            override fun run() {
+                if (hasSkipped) return
+                countdownSeconds--
+                if (countdownSeconds <= 0) {
+                    countdownView.text = "0"
+                    hasSkipped = true
+                    val activity = panelView.context as MainActivity
+                    activity.advanceFromRest()
+                } else {
+                    updateDisplay()
+                    countdownHandler.postDelayed(this, 1000L)
+                }
+            }
+        }
+        countdownHandler.postDelayed(countdownRunnable!!, 1000L)
+    }
+
+    private fun stopCountdown() {
+        countdownRunnable?.let { countdownHandler.removeCallbacks(it) }
+        countdownRunnable = null
     }
 
     private fun updateDisplay() {
-        val minutes = secondsRemaining / 60
-        val seconds = secondsRemaining % 60
-        timerCountdownView.text = String.format("%d:%02d", minutes, seconds)
-
-        val fillWidth = if (totalSeconds > 0) {
-            timerProgressContainer.width * secondsRemaining / totalSeconds
-        } else 0
-        timerProgressFill.layoutParams.width = fillWidth
-        timerProgressFill.requestLayout()
-
         val activity = panelView.context as MainActivity
         val session = activity.getSession()
         if (session != null) {
             val ex = session.currentExercise
             if (ex.isComplete) {
-                timerExerciseInfo.text = "Next: Exercise List"
+                setsRemainingView.text = panelView.context.getString(R.string.timer_all_sets_complete)
+                countdownView.text = ""
             } else {
                 val setNum = ex.doneSets + 1
-                timerExerciseInfo.text = "Next: ${ex.template.name}  Set $setNum/${ex.sets}"
+                setsRemainingView.text = panelView.context.getString(R.string.timer_sets_remaining, setNum, ex.totalSets)
+                countdownView.text = countdownSeconds.toString()
             }
         }
-    }
-
-    private fun onTimerComplete() {
-        val activity = panelView.context as MainActivity
-        activity.skipTimer()
     }
 }

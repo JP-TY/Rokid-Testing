@@ -19,16 +19,16 @@ internal class CompleteScreenController(
         val duration = activity.getLastWorkoutDuration()
         val minutes = duration / 60
         val seconds = duration % 60
-        completeDurationView.text = "Duration: %d:%02d".format(minutes, seconds)
+        completeDurationView.text = panelView.context.getString(R.string.complete_duration, minutes, seconds)
 
         val lastResult = activity.getLastWorkoutResult()
         if (lastResult != null) {
             val volUnit = if (lastResult.weightUnit == WeightUnit.KG) "kg" else "lbs"
             val volStr = if (lastResult.totalVolume > 0) {
-                "Volume: %.0f $volUnit".format(lastResult.totalVolume)
+                panelView.context.getString(R.string.complete_volume, lastResult.totalVolume, volUnit)
             } else ""
-            val setsStr = "Sets: ${lastResult.totalSets}"
-            completeStatsView.text = "$setsStr  $volStr"
+            val setsStr = panelView.context.getString(R.string.complete_sets, lastResult.totalSets)
+            completeStatsView.text = panelView.context.getString(R.string.complete_stats_format, setsStr, volStr)
             completeStatsView.visibility = View.VISIBLE
         } else {
             completeStatsView.visibility = View.GONE
