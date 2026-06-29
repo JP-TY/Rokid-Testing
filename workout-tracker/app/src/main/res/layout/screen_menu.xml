@@ -4,8 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center_vertical"
-    android:orientation="vertical"
-    android:background="@color/hud_background">
+    android:orientation="vertical">
 
     <TextView
         android:id="@+id/menuIntroView"
@@ -15,13 +14,12 @@
         android:fontFamily="monospace"
         android:text="@string/menu_intro"
         android:textColor="@color/hud_foreground"
-        android:textSize="13dp" />
+        android:textSize="13sp" />
 
     <LinearLayout
         android:id="@+id/menuContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@color/hud_background"
         android:orientation="vertical" />
 </LinearLayout>

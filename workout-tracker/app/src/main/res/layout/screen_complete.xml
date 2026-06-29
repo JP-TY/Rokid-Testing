@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/completePanel"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
 
     <LinearLayout
+        android:id="@+id/completePanel"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
@@ -18,7 +16,7 @@
             android:fontFamily="monospace"
             android:text="@string/complete_message"
             android:textColor="@color/hud_accent"
-            android:textSize="30dp"
+            android:textSize="30sp"
             android:textStyle="bold" />
 
         <TextView
@@ -29,7 +27,7 @@
             android:gravity="center"
             android:fontFamily="monospace"
             android:textColor="@color/hud_foreground_muted"
-            android:textSize="16dp" />
+            android:textSize="16sp" />
 
         <TextView
             android:id="@+id/completeStatsView"
@@ -39,7 +37,7 @@
             android:gravity="center"
             android:fontFamily="monospace"
             android:textColor="@color/hud_foreground_muted"
-            android:textSize="14dp"
+            android:textSize="14sp"
             android:visibility="gone" />
     </LinearLayout>
-</FrameLayout>
+</merge>

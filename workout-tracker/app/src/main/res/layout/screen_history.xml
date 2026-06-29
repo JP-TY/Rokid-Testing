@@ -6,8 +6,7 @@
     android:gravity="center_vertical"
     android:orientation="vertical"
     android:paddingLeft="10dp"
-    android:paddingRight="10dp"
-    android:background="@color/hud_background">
+    android:paddingRight="10dp">
 
     <TextView
         android:id="@+id/historyEmptyView"
@@ -17,7 +16,7 @@
         android:gravity="center"
         android:text="@string/history_empty"
         android:textColor="@color/hud_foreground_muted"
-        android:textSize="16dp"
+        android:textSize="16sp"
         android:visibility="gone" />
 
     <LinearLayout
@@ -25,6 +24,5 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@color/hud_background"
         android:orientation="vertical" />
 </LinearLayout>
