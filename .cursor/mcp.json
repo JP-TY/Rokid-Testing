@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "firecrawl": {
+      "url": "https://mcp.firecrawl.dev/YOUR_FIRECRAWL_API_KEY/v2/mcp"
+    }
+  }
+}

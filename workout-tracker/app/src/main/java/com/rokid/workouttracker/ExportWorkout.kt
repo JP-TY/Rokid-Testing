@@ -2,13 +2,10 @@ package com.rokid.workouttracker
 
 import android.content.ContentValues
 import android.content.Context
-import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -50,10 +47,11 @@ object ExportWorkout {
         context: Context,
         session: WorkoutSession,
         durationSeconds: Long
-    ): Boolean {
+    ): String? {
         try {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.getDefault())
-            val fileName = "${session.template.name}_${dateFormat.format(Date())}.json"
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault())
+            val fileName = "workout_${dateFormat.format(Date())}.json"
+            val latestName = "workout_latest.json"
             val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(session.workoutStartTime))
 
             val exportData = ExportWorkoutData(
@@ -76,26 +74,24 @@ object ExportWorkout {
             )
 
             val content = json.encodeToString(exportData)
+            val resolver = context.contentResolver
+            var primaryWritten = false
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            for (name in listOf(fileName, latestName)) {
                 val contentValues = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.DISPLAY_NAME, name)
                     put(MediaStore.Downloads.MIME_TYPE, "application/json")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.RELATIVE_PATH, "Download/WorkoutTracker")
                 }
-                val resolver = context.contentResolver
                 val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                    ?: return false
-                resolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
-                    ?: return false
-            } else {
-                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                dir.mkdirs()
-                File(dir, fileName).writeText(content)
+                if (uri != null) {
+                    resolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
+                    if (name == fileName) primaryWritten = true
+                }
             }
-            return true
+            return if (primaryWritten) fileName else null
         } catch (_: Exception) {
-            return false
+            return null
         }
     }
 }

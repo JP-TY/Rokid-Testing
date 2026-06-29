@@ -55,13 +55,15 @@ internal class ExerciseScreenController(
         val setNumber = exercise.doneSets + 1
 
         exerciseNameView.text = exercise.template.name
-        exerciseProgressView.text = "Set $setNumber of ${exercise.totalSets}  |  Target: ${exercise.template.targetReps} reps"
+        exerciseProgressView.text = panelView.context.getString(
+            R.string.exercise_set_progress, setNumber, exercise.totalSets, exercise.template.targetReps
+        )
 
         val weightUnitLabel = if (exercise.template.weightUnit == WeightUnit.KG) "kg" else "lb"
         val weightWhole = session.currentWeightAdjustment.toInt()
 
-        exerciseWeightView.text = "Weight: $weightWhole $weightUnitLabel"
-        exerciseRepsView.text = "Reps: ${session.currentRepAdjustment}"
+        exerciseWeightView.text = panelView.context.getString(R.string.exercise_weight_label, weightWhole, weightUnitLabel)
+        exerciseRepsView.text = panelView.context.getString(R.string.exercise_reps_label, session.currentRepAdjustment)
 
         val repo = activity.getRepository()
         val prevSets = repo.getPreviousSets(exercise.template.id)
@@ -69,7 +71,7 @@ internal class ExerciseScreenController(
             val last = prevSets.last()
             val pu = if (last.weightUnit == WeightUnit.KG) "kg" else "lb"
             val pw = last.weight.toInt()
-            exercisePrevStatsView.text = "Prev: $pw $pu x ${last.reps}"
+            exercisePrevStatsView.text = panelView.context.getString(R.string.exercise_prev_stats_format, pw, pu, last.reps)
             exercisePrevStatsView.visibility = View.VISIBLE
         } else {
             exercisePrevStatsView.visibility = View.GONE
@@ -138,7 +140,7 @@ internal class ExerciseScreenController(
 
                             logSetView.visibility = View.GONE
                             feedbackView.visibility = View.VISIBLE
-                            feedbackView.text = "${w}$unit x $reps saved!"
+                            feedbackView.text = panelView.context.getString(R.string.exercise_logged_feedback, w, unit, reps)
 
                             handler.postDelayed({
                                 transitioning = false

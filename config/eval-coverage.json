@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "description": "Eval coverage config for Rokid-Testing Android project",
+  "testCommand": "cd workout-tracker && ./gradlew :app:testDebugUnitTest",
+  "lintCommand": "cd workout-tracker && ./gradlew :app:lint",
+  "coverage": {
+    "tool": "jacoco",
+    "config": "workout-tracker/app/build.gradle.kts",
+    "reportPath": "workout-tracker/app/build/reports/coverage/debug/index.html"
+  },
+  "gates": {
+    "lintErrors": 0,
+    "lintWarnings": 20,
+    "testPassRate": 100
+  }
+}

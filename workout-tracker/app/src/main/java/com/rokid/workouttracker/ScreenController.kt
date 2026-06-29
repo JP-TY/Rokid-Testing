@@ -25,6 +25,7 @@ internal sealed interface ScreenCommand {
     object ExitApp : ScreenCommand
     object FinishWorkout : ScreenCommand
     object AbandonWorkout : ScreenCommand
+    object DeleteSession : ScreenCommand
     object SaveAndExit : ScreenCommand
     data class Open(val screen: ScreenId) : ScreenCommand
 }

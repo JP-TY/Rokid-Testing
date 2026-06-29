@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "description": "Cost tracking config for Rokid-Testing project",
+  "budgets": {
+    "daily_usd": 5.00,
+    "monthly_usd": 50.00
+  },
+  "alerts": {
+    "notify_at_percent": 80
+  },
+  "routing": {
+    "default_model": "sonnet",
+    "simple_tasks": "haiku",
+    "complex_tasks": "opus"
+  }
+}

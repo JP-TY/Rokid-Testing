@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.View.MeasureSpec
 import android.widget.FrameLayout
+import androidx.core.view.isGone
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -46,7 +47,7 @@ class HudViewportLayout @JvmOverloads constructor(
 
         for (index in 0 until childCount) {
             val child = getChildAt(index)
-            if (child.visibility == View.GONE) continue
+            if (child.isGone) continue
             child.measure(childWidthSpec, childHeightSpec)
         }
 
@@ -62,7 +63,7 @@ class HudViewportLayout @JvmOverloads constructor(
 
         for (index in 0 until childCount) {
             val child = getChildAt(index)
-            if (child.visibility == View.GONE) continue
+            if (child.isGone) continue
 
             child.layout(0, 0, designWidthPx, designHeightPx)
             child.pivotX = 0f

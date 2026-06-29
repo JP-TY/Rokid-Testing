@@ -1,19 +1,26 @@
 package com.rokid.workouttracker
 
-import android.content.Intent
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.NotificationManager
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
-import android.speech.RecognizerIntent
+import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import java.util.Locale
+import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : ComponentActivity() {
 
@@ -36,7 +43,13 @@ class MainActivity : ComponentActivity() {
     private lateinit var headerTitleView: TextView
     private lateinit var headerTimeView: TextView
     private lateinit var footerNavigationView: TextView
+    private lateinit var voiceStatusView: TextView
     private lateinit var screenControllers: Map<ScreenId, ScreenController>
+
+    private var voiceRecognizer: VoiceCommandRecognizer? = null
+    private var voiceStatusHandler = Handler(Looper.getMainLooper())
+    private var voiceStatusClearRunnable: Runnable? = null
+    private var dictationCallback: ((String, Boolean) -> Unit)? = null
 
     private var currentScreen = ScreenId.MENU
     private var session: WorkoutSession? = null
@@ -51,10 +64,21 @@ class MainActivity : ComponentActivity() {
     private lateinit var repository: WorkoutRepository
     private var customTemplates: List<WorkoutTemplate> = emptyList()
 
+    private lateinit var notificationManager: NotificationManager
+    private var dndRestored = false
+
     private var idleHandler = Handler(Looper.getMainLooper())
     private var idleRunnable: Runnable? = null
     private var isSleeping = false
-    private val IDLE_TIMEOUT_MS = 120_000L
+    private val IDLE_TIMEOUT_MS = 300_000L
+
+    private val recordAudioLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            voiceRecognizer?.loadModel()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,34 +86,176 @@ class MainActivity : ComponentActivity() {
 
         database = RoomBuilder.create(this)
         repository = WorkoutRepository(database)
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         setContentView(R.layout.activity_main)
         bindViews()
         bindScreenControllers()
 
+        window.decorView.setOnSystemUiVisibilityChangeListener { visibility ->
+            if (visibility and View.SYSTEM_UI_FLAG_FULLSCREEN == 0) {
+                applyImmersiveMode()
+            }
+        }
+
         refreshCustomWorkouts()
         restoreOrStart()
         currentScreenController().onEnter()
         renderUi()
+
+        initVoiceRecognizer()
+    }
+
+    private fun initVoiceRecognizer() {
+        val recognizer = VoiceCommandRecognizer(
+            context = this,
+            grammarCommands = setOf(
+                "select", "back", "next", "previous",
+                "start", "stop", "finish", "save", "delete",
+                "history", "menu", "export"
+            ),
+            onResult = { result ->
+                runOnUiThread { handleVoiceResult(result) }
+            }
+        )
+        voiceRecognizer = recognizer
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            recognizer.loadModel()
+        } else {
+            recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private fun handleVoiceResult(result: VoiceCommandResult) {
+        when (result) {
+            is VoiceCommandResult.Recognized -> {
+                showVoiceStatus("voice: ${result.command}")
+                routeVoiceCommand(result.command)
+            }
+            is VoiceCommandResult.Dictation -> {
+                if (dictationCallback != null) {
+                    dictationCallback?.invoke(result.text, result.isFinal)
+                    if (result.isFinal) {
+                        dictationCallback = null
+                    }
+                } else if (result.text.isNotEmpty()) {
+                    showVoiceStatus(result.text)
+                }
+            }
+            VoiceCommandResult.ListeningStopped -> {
+                if (dictationCallback != null) {
+                    dictationCallback = null
+                }
+            }
+            is VoiceCommandResult.AudioLevel -> {}
+            is VoiceCommandResult.Error -> {
+                Log.w("VoiceCommand", "Error: ${result.message}")
+            }
+            is VoiceCommandResult.ModelReady -> {
+                Log.i("VoiceCommand", "Model ready")
+                voiceRecognizer?.startListening()
+            }
+            VoiceCommandResult.ModelFailed -> {
+                Log.w("VoiceCommand", "Model load failed")
+            }
+            VoiceCommandResult.ListeningStarted -> {}
+        }
+    }
+
+    private fun routeVoiceCommand(command: String) {
+        when (command) {
+            "select", "ok", "go" -> handleAction(NavigationAction.SELECT)
+            "back", "cancel", "exit" -> handleAction(NavigationAction.BACK)
+            "next", "down", "right" -> handleAction(NavigationAction.NEXT)
+            "previous", "up", "left" -> handleAction(NavigationAction.PREVIOUS)
+            "start" -> {
+                val s = session
+                if (s != null && s.status == SessionStatus.ACTIVE) {
+                    resumeSession()
+                } else if (currentScreen == ScreenId.MENU) {
+                    currentScreenController().handleAction(NavigationAction.SELECT)
+                    renderUi()
+                }
+            }
+            "finish", "stop" -> {
+                if (currentScreen == ScreenId.EXERCISE_LIST) {
+                    handleAction(NavigationAction.SELECT)
+                }
+            }
+            "delete" -> {
+                discardSession()
+            }
+            "save" -> {
+                saveSessionIfActive()
+                navigateTo(ScreenId.MENU)
+                renderUi()
+            }
+            "history" -> {
+                navigateTo(ScreenId.HISTORY)
+                renderUi()
+            }
+            "menu", "home" -> {
+                navigateTo(ScreenId.MENU)
+                renderUi()
+            }
+            "export" -> {
+                if (currentScreen == ScreenId.COMPLETE) {
+                    lastCompletedSession?.let {
+                        exportLastWorkout()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showVoiceStatus(text: String) {
+        voiceStatusView.text = text
+        voiceStatusView.visibility = View.VISIBLE
+        voiceStatusClearRunnable?.let { voiceStatusHandler.removeCallbacks(it) }
+        voiceStatusClearRunnable = Runnable {
+            voiceStatusView.visibility = View.GONE
+        }
+        voiceStatusHandler.postDelayed(voiceStatusClearRunnable!!, 2000L)
     }
 
     override fun onResume() {
         super.onResume()
         applyImmersiveMode()
+        enableDnd()
 
         if (isSleeping && session != null) {
             isSleeping = false
-            if (currentScreen == ScreenId.TIMER) {
-                currentScreenController().onEnter()
-            }
             renderUi()
+            resumeIdleTimer()
+            return
+        }
+
+        if (session == null) {
+            restoreOrStart()
+            if (session != null) {
+                startWorkoutTimer()
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                resumeIdleTimer()
+                navigateTo(currentScreen)
+                renderUi()
+                return
+            }
         }
 
         resumeIdleTimer()
+        voiceRecognizer?.let { v ->
+            if (v.modelAvailable && v.hasRecordPermission) {
+                v.startListening()
+            }
+        }
     }
 
     override fun onPause() {
         super.onPause()
+        voiceRecognizer?.stopListening()
+        restoreDnd()
         saveSessionIfActive()
         pauseIdleTimer()
     }
@@ -108,6 +274,8 @@ class MainActivity : ComponentActivity() {
         stopWorkoutTimer()
         pauseIdleTimer()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        voiceRecognizer?.destroy()
+        voiceRecognizer = null
         super.onDestroy()
     }
 
@@ -120,6 +288,23 @@ class MainActivity : ComponentActivity() {
         return navigationInputMapper.onTouchEvent(event) || super.dispatchTouchEvent(event)
     }
 
+    @Suppress("DEPRECATION")
+    @SuppressLint("GestureBackNavigation", "RestrictedApi")
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                resetIdleTimer()
+                if (isSleeping) {
+                    wakeFromSleep()
+                    return true
+                }
+                onBackPressedDispatcher.onBackPressed()
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         resetIdleTimer()
         if (isSleeping) {
@@ -130,13 +315,36 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyImmersiveMode() {
-        window.decorView.systemUiVisibility = (
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                )
+        window.decorView.windowInsetsController?.let { controller ->
+            controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+            controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    private fun hasDndAccess(): Boolean {
+        return notificationManager.isNotificationPolicyAccessGranted
+    }
+
+    private fun enableDnd() {
+        if (!dndRestored && hasDndAccess()) {
+            try {
+                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
+                dndRestored = true
+            } catch (_: SecurityException) {
+                dndRestored = false
+            }
+        }
+    }
+
+    private fun restoreDnd() {
+        if (dndRestored && hasDndAccess()) {
+            try {
+                notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+            } catch (_: SecurityException) {
+                // ignore
+            }
+        }
+        dndRestored = false
     }
 
     private fun resumeIdleTimer() {
@@ -168,9 +376,7 @@ class MainActivity : ComponentActivity() {
         isSleeping = false
         window.decorView.alpha = 1.0f
         applyImmersiveMode()
-        if (currentScreen == ScreenId.TIMER) {
-            currentScreenController().onEnter()
-        }
+        currentScreenController().onEnter()
         renderUi()
         resumeIdleTimer()
     }
@@ -205,6 +411,7 @@ class MainActivity : ComponentActivity() {
         headerTitleView = findViewById(R.id.headerTitleView)
         headerTimeView = findViewById(R.id.headerTimeView)
         footerNavigationView = findViewById(R.id.footerNavigationView)
+        voiceStatusView = findViewById(R.id.voiceStatusView)
     }
 
     private fun bindScreenControllers() {
@@ -231,7 +438,8 @@ class MainActivity : ComponentActivity() {
             ScreenCommand.Stay -> renderUi()
             ScreenCommand.ExitApp -> finish()
             ScreenCommand.FinishWorkout -> finishWorkout()
-            ScreenCommand.AbandonWorkout -> abandonWorkout()
+            ScreenCommand.AbandonWorkout -> discardSession()
+            ScreenCommand.DeleteSession -> discardSession()
             ScreenCommand.SaveAndExit -> {
                 saveSessionIfActive()
                 navigateTo(ScreenId.MENU)
@@ -286,6 +494,7 @@ class MainActivity : ComponentActivity() {
         if (workoutIndex >= allTemplates.size) return
         session = WorkoutSession.create(allTemplates[workoutIndex])
         startWorkoutTimer()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         resumeIdleTimer()
         navigateTo(ScreenId.EXERCISE_LIST)
         renderUi()
@@ -294,12 +503,18 @@ class MainActivity : ComponentActivity() {
     fun startCustomWorkout(template: WorkoutTemplate) {
         session = WorkoutSession.create(template)
         startWorkoutTimer()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         resumeIdleTimer()
         navigateTo(ScreenId.EXERCISE_LIST)
         renderUi()
     }
 
     fun getSession(): WorkoutSession? = session
+
+    fun hasActiveSession(): Boolean {
+        val s = session
+        return s != null && s.status == SessionStatus.ACTIVE
+    }
 
     fun getLastWorkoutDuration(): Long = lastWorkoutDuration
 
@@ -315,7 +530,16 @@ class MainActivity : ComponentActivity() {
         renderUi()
     }
 
-    fun skipTimer() {
+    fun resumeSession() {
+        val s = session ?: return
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        startWorkoutTimer()
+        resumeIdleTimer()
+        navigateTo(ScreenId.EXERCISE_LIST)
+        renderUi()
+    }
+
+    fun advanceFromRest() {
         val s = session
         if (s != null && s.currentExercise.isComplete) {
             navigateTo(ScreenId.EXERCISE_LIST)
@@ -328,10 +552,10 @@ class MainActivity : ComponentActivity() {
     fun finishWorkout() {
         stopWorkoutTimer()
         pauseIdleTimer()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val s = session
         if (s != null) {
             lastWorkoutDuration = s.getElapsedSeconds()
-            // Ensure session is saved to DB so it has an id before marking completed
             if (s.id == 0L) {
                 s.status = SessionStatus.ACTIVE
                 repository.saveSession(s)
@@ -353,17 +577,15 @@ class MainActivity : ComponentActivity() {
         renderUi()
     }
 
-    fun abandonWorkout() {
+    fun discardSession() {
         stopWorkoutTimer()
         pauseIdleTimer()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val s = session
         if (s != null) {
-            if (s.id == 0L) {
-                s.status = SessionStatus.ACTIVE
-                repository.saveSession(s)
+            if (s.id != 0L) {
+                repository.clearActiveSession()
             }
-            s.status = SessionStatus.ABANDONED
-            repository.updateSessionStatus(s, SessionStatus.ABANDONED)
         }
         session = null
         navigateTo(ScreenId.MENU)
@@ -374,14 +596,28 @@ class MainActivity : ComponentActivity() {
         val s = lastCompletedSession
         val duration = lastWorkoutDuration
         if (s != null && duration > 0) {
-            val ok = ExportWorkout.exportSession(this, s, duration)
-            val msg = if (ok) getString(R.string.export_success) else getString(R.string.export_failed)
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            val fileName = ExportWorkout.exportSession(this, s, duration)
+            if (fileName != null) {
+                Toast.makeText(this, getString(R.string.export_success), Toast.LENGTH_SHORT).show()
+                android.util.Log.i("WorkoutExport", "Saved: $fileName")
+            } else {
+                Toast.makeText(this, getString(R.string.export_failed), Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     fun refreshCustomWorkouts() {
         customTemplates = repository.getCustomTemplates()
+    }
+
+    fun enterDictationForName(callback: (String, Boolean) -> Unit) {
+        voiceRecognizer?.switchToNameGrammar()
+        dictationCallback = callback
+    }
+
+    fun exitDictation() {
+        dictationCallback = null
+        voiceRecognizer?.switchToCommandGrammar()
     }
 
     // ── Workout timer ──

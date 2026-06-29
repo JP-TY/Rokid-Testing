@@ -1,0 +1,43 @@
+# Secrets & credentials
+.env
+.env.local
+.env.*.local
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+credentials.json
+service-account*.json
+*secret*
+*credential*
+
+# Generated export artifacts
+workout-tracker/workout_latest.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+*.log
+logs/

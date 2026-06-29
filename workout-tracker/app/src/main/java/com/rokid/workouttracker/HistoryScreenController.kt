@@ -68,12 +68,13 @@ internal class HistoryScreenController(
             val marker = if (isFocused) "> " else "  "
             val dateStr = dateFormat.format(Date(session.startTimeMillis))
             val durMinutes = session.durationSeconds / 60
-            val durStr = "${durMinutes}m"
-            val setsStr = "${session.totalSets} sets"
-            val volStr = if (session.totalVolume > 0) "  Vol: ${session.totalVolume.toInt()}" else ""
+            val setsStr = panelView.context.getString(R.string.complete_sets, session.totalSets)
+            val volStr = if (session.totalVolume > 0) {
+                "  Vol: ${session.totalVolume.toInt()}"
+            } else ""
 
             val row = TextView(panelView.context).apply {
-                text = "$marker${session.templateName}  $dateStr  $durStr  $setsStr$volStr"
+                text = panelView.context.getString(R.string.history_row, marker, session.templateName, dateStr, durMinutes, setsStr, volStr)
                 setTextColor(if (isFocused) fgColor else mutedColor)
                 typeface = Typeface.create(Typeface.MONOSPACE, if (isFocused) Typeface.BOLD else Typeface.NORMAL)
                 textSize = 12f
@@ -89,7 +90,7 @@ internal class HistoryScreenController(
         val durMinutes = session.durationSeconds / 60
 
         val header = TextView(panelView.context).apply {
-            text = "  ${session.templateName}  $dateStr  ${durMinutes}m"
+            text = panelView.context.getString(R.string.history_detail_header, session.templateName, dateStr, durMinutes)
             setTextColor(fgColor)
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             textSize = 13f
@@ -102,7 +103,7 @@ internal class HistoryScreenController(
             for ((ei, exercise) in data.exercises.withIndex()) {
                 val exName = unslugify(exercise.templateId)
                 val exLabel = TextView(panelView.context).apply {
-                    text = "  ${ei + 1}. $exName"
+                    text = panelView.context.getString(R.string.history_exercise_num, ei + 1, exName)
                     setTextColor(accentColor)
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
                     textSize = 12f
@@ -114,7 +115,7 @@ internal class HistoryScreenController(
                     val unit = if (set.weightUnit == "KG") "kg" else "lb"
                     val w = set.weight.toInt()
                     val setText = TextView(panelView.context).apply {
-                        text = "      Set ${si + 1}: ${w}$unit x ${set.reps}"
+                        text = panelView.context.getString(R.string.history_set_detail, si + 1, w, unit, set.reps)
                         setTextColor(mutedColor)
                         typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
                         textSize = 11f
@@ -125,7 +126,7 @@ internal class HistoryScreenController(
             }
         } catch (_: Exception) {
             val err = TextView(panelView.context).apply {
-                text = "  Could not load details"
+                text = panelView.context.getString(R.string.history_detail_load_error)
                 setTextColor(mutedColor)
                 textSize = 12f
             }
@@ -177,9 +178,9 @@ internal class HistoryScreenController(
 
     override fun navigationHint(context: Context): String {
         return if (detailSessionIdx >= 0) {
-            "Double-tap: back to list"
+            panelView.context.getString(R.string.history_detail_back)
         } else {
-            context.getString(R.string.nav_history)
+            panelView.context.getString(R.string.nav_history)
         }
     }
 }
