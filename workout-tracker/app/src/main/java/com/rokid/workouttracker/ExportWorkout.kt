@@ -49,7 +49,7 @@ object ExportWorkout {
         durationSeconds: Long
     ): String? {
         try {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.getDefault())
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault())
             val fileName = "workout_${dateFormat.format(Date())}.json"
             val latestName = "workout_latest.json"
             val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(session.workoutStartTime))
@@ -74,20 +74,22 @@ object ExportWorkout {
             )
 
             val content = json.encodeToString(exportData)
+            val resolver = context.contentResolver
+            var primaryWritten = false
 
             for (name in listOf(fileName, latestName)) {
                 val contentValues = ContentValues().apply {
                     put(MediaStore.Downloads.DISPLAY_NAME, name)
                     put(MediaStore.Downloads.MIME_TYPE, "application/json")
-                    put(MediaStore.Downloads.RELATIVE_PATH, "Download")
+                    put(MediaStore.Downloads.RELATIVE_PATH, "Download/WorkoutTracker")
                 }
-                val resolver = context.contentResolver
                 val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
                 if (uri != null) {
                     resolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
+                    if (name == fileName) primaryWritten = true
                 }
             }
-            return fileName
+            return if (primaryWritten) fileName else null
         } catch (_: Exception) {
             return null
         }

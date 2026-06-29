@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build Release APK
+    name: Build Debug APK
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,8 +18,8 @@ jobs:
       - name: Build debug APK
         working-directory: workout-tracker
         run: ./gradlew :app:assembleDebug --no-daemon
-      - name: Upload release asset
+      - name: Upload debug artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: app-debug
           path: workout-tracker/app/build/outputs/apk/debug/app-debug.apk

@@ -205,11 +205,11 @@ internal class MenuScreenController(
                         val repo = activity.getRepository()
                         val result = ImportWorkout.scanAndImport(activity, repo)
                         val msg = if (result.imported.isNotEmpty()) {
-                            "Imported: ${result.imported.joinToString()}"
+                            activity.getString(R.string.import_success, result.imported.joinToString())
                         } else if (result.errors.isNotEmpty()) {
-                            "Error: ${result.errors.first()}"
+                            activity.getString(R.string.import_error, result.errors.first())
                         } else {
-                            "No files found"
+                            activity.getString(R.string.import_no_files)
                         }
                         android.widget.Toast.makeText(activity, msg, android.widget.Toast.LENGTH_LONG).show()
                         if (result.imported.isNotEmpty()) {
@@ -278,7 +278,7 @@ internal class MenuScreenController(
     override fun navigationHint(context: Context): String {
         val row = menuRows.getOrNull(focusedIndex)
         return when {
-            deleteArmed && row?.isDeletable == true -> "Double-tap again to delete"
+            deleteArmed && row?.isDeletable == true -> context.getString(R.string.nav_menu_delete_confirm)
             quitConfirmationArmed -> context.getString(R.string.nav_menu_quit_confirm)
             else -> context.getString(R.string.nav_menu_default)
         }

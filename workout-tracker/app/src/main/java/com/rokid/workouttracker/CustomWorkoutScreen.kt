@@ -73,7 +73,7 @@ internal class CustomWorkoutScreen(
         startVoiceName()
     }
 
-private fun startVoiceName() {
+    private fun startVoiceName() {
         nameMode = NameMode.VOICE
         val activity = panelView.context as MainActivity
         promptView.text = panelView.context.getString(R.string.custom_prompt_speak)

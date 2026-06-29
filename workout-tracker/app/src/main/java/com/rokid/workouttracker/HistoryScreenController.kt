@@ -126,7 +126,7 @@ internal class HistoryScreenController(
             }
         } catch (_: Exception) {
             val err = TextView(panelView.context).apply {
-                text = panelView.context.getString(R.string.history_empty)
+                text = panelView.context.getString(R.string.history_detail_load_error)
                 setTextColor(mutedColor)
                 textSize = 12f
             }

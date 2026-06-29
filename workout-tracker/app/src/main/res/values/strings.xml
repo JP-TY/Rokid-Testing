@@ -17,11 +17,16 @@
     <string name="menu_item_history">History</string>
     <string name="nav_menu_default">Tap: start  |  Swipe: browse  |  Double-tap: quit</string>
     <string name="nav_menu_quit_confirm">Double-tap again to quit</string>
+    <string name="nav_menu_delete_confirm">Double-tap again to delete</string>
+    <string name="import_success">Imported: %1$s</string>
+    <string name="import_error">Error: %1$s</string>
+    <string name="import_no_files">No files found</string>
 
     <!-- History screen -->
     <string name="screen_history_title">Workout History</string>
     <string name="nav_history">Tap: details  |  Double-tap: back</string>
     <string name="history_empty">No workouts yet</string>
+    <string name="history_detail_load_error">Failed to load workout details</string>
     <string name="history_detail_back">Double-tap: back to list</string>
 
     <!-- Custom workout screen -->

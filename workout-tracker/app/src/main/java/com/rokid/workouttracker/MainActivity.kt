@@ -337,7 +337,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun restoreDnd() {
-        if (hasDndAccess()) {
+        if (dndRestored && hasDndAccess()) {
             try {
                 notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
             } catch (_: SecurityException) {

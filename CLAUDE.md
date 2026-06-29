@@ -16,7 +16,7 @@ Rokid-Testing/
 
 ## Primary App: workout-tracker/
 
-See `workout-tracketailed architecture,key files, navigation gestures, seed workouts, build/install steps, and all feature descriptions.
+See `workout-tracker/README.md` for detailed architecture, key files, navigation gestures, seed workouts, build/install steps, and all feature descriptions.
 
 ### Quick Reference
 
