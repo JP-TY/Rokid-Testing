@@ -1,0 +1,60 @@
+{
+    "templateName": "Upper",
+    "date": "2026-06-27 14:07",
+    "durationSeconds": 372,
+    "exercises": [
+        {
+            "name": "Shoulder Press",
+            "sets": [
+                {
+                    "setNumber": 1,
+                    "reps": 8,
+                    "weight": 95.0,
+                    "weightUnit": "KG"
+                },
+                {
+                    "setNumber": 2,
+                    "reps": 8,
+                    "weight": 95.0,
+                    "weightUnit": "KG"
+                }
+            ]
+        },
+        {
+            "name": "Seated Cable Row",
+            "sets": []
+        },
+        {
+            "name": "Chest Fly",
+            "sets": []
+        },
+        {
+            "name": "Face Pull",
+            "sets": []
+        },
+        {
+            "name": "Triceps Pressdown",
+            "sets": []
+        },
+        {
+            "name": "Preacher Curl",
+            "sets": []
+        },
+        {
+            "name": "Lateral Raise",
+            "sets": []
+        },
+        {
+            "name": "Incline Chest Press",
+            "sets": []
+        },
+        {
+            "name": "Cable Crunch",
+            "sets": []
+        },
+        {
+            "name": "Single Arm Triceps Pushdown",
+            "sets": []
+        }
+    ]
+}
