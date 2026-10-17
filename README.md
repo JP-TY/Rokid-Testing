@@ -87,6 +87,43 @@ adb shell am start -n com.rokid.workouttracker/.MainActivity
 
 This project uses OpenCode for AI-assisted development. Refer to `.opencode/` for agent configurations and commands.
 
+### Optional web research with Parallel
+
+Use [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) in OpenCode to find current Android or Rokid development references and fetch pages for context. The anonymous endpoint provides free web search in Fast mode and page fetching without an account or API key, with usage limits for light use.
+
+To opt in, merge this fragment into the root `opencode.json`. Add `parallel` alongside the existing `exa` and `firecrawl` entries under `mcp`; keep those entries and your other settings:
+
+```json
+{
+  "mcp": {
+    "parallel": {
+      "type": "remote",
+      "url": "https://search.parallel.ai/mcp",
+      "enabled": true,
+      "oauth": false,
+      "headers": {
+        "User-Agent": "Rokid-Testing/Parallel-MCP (+https://github.com/JP-TY/Rokid-Testing)"
+      }
+    }
+  }
+}
+```
+
+`oauth: false` keeps this connection anonymous. See [OpenCode's remote MCP setup](https://opencode.ai/docs/mcp-servers/#remote) for configuration options.
+
+From the repository root, check the connection, then start a new OpenCode session:
+
+```bash
+opencode mcp list
+opencode
+```
+
+The list should show `parallel` as connected. Try this prompt in the session:
+
+> Use the parallel MCP tools to search for official Android documentation on FLAG_KEEP_SCREEN_ON, then fetch the relevant page. Explain when the flag keeps the display awake and include the source URLs.
+
+The server offers `web_search` and `web_fetch`; OpenCode prefixes MCP tool names with the server name. These tools support development research, not web access inside the workout app. To turn the connection off, set `mcp.parallel.enabled` to `false` and restart OpenCode.
+
 ## License
 
 See individual files for licensing information.
